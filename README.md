@@ -1,5 +1,5 @@
 # nora = nonce-ratchet
-Generating deterministic nones
+Generating deterministic nonces.
 
 Program for generating deterministic nonces, per day,
 so that Alice and Bob do not have to send them to each
