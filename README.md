@@ -1,4 +1,4 @@
-# nora = nonce-ratchet
+# nora = nonce ratchet
 Generating deterministic nonces.
 
 Program for generating deterministic nonces, per day,
