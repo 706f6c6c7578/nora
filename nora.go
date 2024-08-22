@@ -49,9 +49,10 @@ func main() {
 
 	var key []byte
 	if *saltPtr != "" {
-		// Use PBKDF2 if a salt is provided
+		// Use PBKDF2 with salt and date
 		iterations := 10000 // You can adjust this number
-		key = pbkdf2.Key([]byte(password), []byte(*saltPtr), iterations, 32, sha256.New)
+		combinedSalt := []byte(*saltPtr + date)
+		key = pbkdf2.Key([]byte(password), combinedSalt, iterations, 32, sha256.New)
 	} else {
 		// Keep the old method if no salt is provided
 		hash := sha256.Sum256([]byte(password + date))
