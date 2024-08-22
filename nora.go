@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/hkdf"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 func generateNonce(r io.Reader, length int) (string, error) {
@@ -28,11 +29,12 @@ func main() {
 	noncePtr := flag.Int("n", 1, "the number of nonces to be generated")
 	savePtr := flag.Bool("s", false, "save nonces to files")
 	partyBPtr := flag.Bool("b", false, "indicate if this is Party B")
+	saltPtr := flag.String("salt", "", "the salt for PBKDF2")
 
 	flag.Parse()
 
 	if *passwordPtr == "" {
-		fmt.Println("Usage: -p <password> [-b party B] [-n number of nonces] [-l length of the nonce] [-s save nonces]")
+		fmt.Println("Usage: -p <password> [-salt <salt>] [-b party B] [-n number of nonces] [-l length of the nonce] [-s save nonces]")
 		return
 	}
 
@@ -44,20 +46,30 @@ func main() {
 
 	password := *passwordPtr
 	date := time.Now().UTC().Format("20060102")
-	hash := sha256.Sum256([]byte(password + date))
+
+	var key []byte
+	if *saltPtr != "" {
+		// Use PBKDF2 if a salt is provided
+		iterations := 10000 // You can adjust this number
+		key = pbkdf2.Key([]byte(password), []byte(*saltPtr), iterations, 32, sha256.New)
+	} else {
+		// Keep the old method if no salt is provided
+		hash := sha256.Sum256([]byte(password + date))
+		key = hash[:]
+	}
 
 	if *partyBPtr {
-		// Increment the hash by 1 if this is Party B
-		for i := len(hash) - 1; i >= 0; i-- {
-			hash[i]++
-			if hash[i] != 0 {
+		// Increment the key by 1 if this is Party B
+		for i := len(key) - 1; i >= 0; i-- {
+			key[i]++
+			if key[i] != 0 {
 				break
 			}
 		}
 	}
 
 	// Use HKDF to derive nonces
-	hkdfReader := hkdf.New(sha256.New, hash[:], nil, nil)
+	hkdfReader := hkdf.New(sha256.New, key, nil, nil)
 
 	for i := 0; i < *noncePtr; i++ {
 		value, err := generateNonce(hkdfReader, *lengthPtr)
@@ -76,4 +88,3 @@ func main() {
 		}
 	}
 }
-
