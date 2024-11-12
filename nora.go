@@ -30,11 +30,12 @@ func main() {
 	savePtr := flag.Bool("s", false, "save nonces to files")
 	partyBPtr := flag.Bool("b", false, "indicate if this is Party B")
 	saltPtr := flag.String("salt", "", "the salt for PBKDF2")
+	rewindPtr := flag.String("r", "", "specific date in format YYYY-MM-DD (UTC)")
 
 	flag.Parse()
 
 	if *passwordPtr == "" {
-		fmt.Println("Usage: -p <password> [-salt <salt>] [-b party B] [-n number of nonces] [-l length of the nonce] [-s save nonces]")
+		fmt.Println("Usage: -p <password> [-salt <salt>] [-b party B] [-n number of nonces] \n          [-l length of the nonce] [-s save nonces] [-r YYYY-MM-DD]")
 		return
 	}
 
@@ -44,23 +45,31 @@ func main() {
 		return
 	}
 
+	var targetDate time.Time
+	if *rewindPtr != "" {
+		targetDate, err = time.Parse("2006-01-02", *rewindPtr)
+		if err != nil {
+			fmt.Printf("Invalid date format. Please use YYYY-MM-DD format: %v\n", err)
+			return
+		}
+	} else {
+		targetDate = time.Now().UTC()
+	}
+
 	password := *passwordPtr
-	date := time.Now().UTC().Format("20060102")
+	date := targetDate.Format("20060102")
 
 	var key []byte
 	if *saltPtr != "" {
-		// Use PBKDF2 with salt and date
-		iterations := 10000 // You can adjust this number
+		iterations := 10000
 		combinedSalt := []byte(*saltPtr + date)
 		key = pbkdf2.Key([]byte(password), combinedSalt, iterations, 32, sha256.New)
 	} else {
-		// Keep the old method if no salt is provided
 		hash := sha256.Sum256([]byte(password + date))
 		key = hash[:]
 	}
 
 	if *partyBPtr {
-		// Increment the key by 1 if this is Party B
 		for i := len(key) - 1; i >= 0; i-- {
 			key[i]++
 			if key[i] != 0 {
@@ -69,7 +78,6 @@ func main() {
 		}
 	}
 
-	// Use HKDF to derive nonces
 	hkdfReader := hkdf.New(sha256.New, key, nil, nil)
 
 	for i := 0; i < *noncePtr; i++ {
